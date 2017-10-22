@@ -113,6 +113,16 @@ if [[ -t 1 && ! $COLOR = "NO" ]]; then
   S='\\'
 fi
 _WIDTH="$(stty size | cut -d ' ' -f 2)"
+_WIDTH="${_WIDTH:-80}"
+
+#Valid Chars
+#https://wiki.archlinux.org/index.php/PKGBUILD#Package_name
+valid_pkgname='a-z0-9-_.+@\n'
+valid_pkgver='a-z0-9.\n'
+valid_pkgrel='a-z0-9.\n'
+valid_epoch='0-9\n'
+valid_arch='a-z0-9_\n'
+
 
 trap ctrlc INT
 ctrlc() {
@@ -282,14 +292,14 @@ parser() {
   if [ -f "$1" ]; then
     if [[ $nosource == 1 ]]; then
       unset pkgname pkgver pkgrel arch checkdepends makedepends depends epoch
-      pkgname=$(grep -o "^pkgname=\S*" "$1" | awk -F = '{print $2}' | tr -dc 'a-z0-9-_.\n');
-      pkgver=$(grep -o "^pkgver=\S*" "$1" | awk -F = '{print $2}' | tr -dc 'a-z0-9-_.\n');
-      pkgrel=$(grep -o "^pkgrel=\S*" "$1" | awk -F = '{print $2}' | tr -dc 'a-z0-9-_.\n');
-      epoch=$(grep -o "^epoch=\S*" "$1" | awk -F = '{print $2}' | tr -dc 'a-z0-9-_.\n');
-      _arch=$(grep "^arch=" "$1" | awk -F = '{print $2}' | tr -dc 'a-z0-9-_. \n');
-      _checkdepends=$(grep "^checkdepends=" "$1" | awk -F = '{print $2}' | tr -dc 'a-z0-9-_. \n');
-      _makedepends=$(grep "^makedepends=" "$1" | awk -F = '{print $2}' | tr -dc 'a-z0-9-_. \n');
-      _depends=$(grep "^depends=" "$1" | awk -F = '{print $2}' | tr -dc 'a-z0-9-_. \n');
+      pkgname=$(grep -o "^pkgname=\S*" "$1" | awk -F = '{print $2}' | tr -dc $valid_pkgname);
+      pkgver=$(grep -o "^pkgver=\S*" "$1" | awk -F = '{print $2}' | tr -dc $valid_pkgver);
+      pkgrel=$(grep -o "^pkgrel=\S*" "$1" | awk -F = '{print $2}' | tr -dc $valid_pkgrel);
+      epoch=$(grep -o "^epoch=\S*" "$1" | awk -F = '{print $2}' | tr -dc $valid_epoch);
+      _arch=$(grep "^arch=" "$1" | awk -F = '{print $2}' | tr -dc $valid_arch);
+      _checkdepends=$(grep "^checkdepends=" "$1" | awk -F = '{print $2}' | tr -dc $valid_pkgname);
+      _makedepends=$(grep "^makedepends=" "$1" | awk -F = '{print $2}' | tr -dc $valid_pkgname);
+      _depends=$(grep "^depends=" "$1" | awk -F = '{print $2}' | tr -dc $valid_pkgname);
 
       for _machine in $_arch; do arch+=("$_machine"); done
       for _pkg in $_checkdepends; do depends+=("$_pkg"); done
@@ -314,7 +324,7 @@ parser() {
 
 # grep PKGBUILD arrays ($1 is array var)
 pkgbuildgrep() {
-  grep "^${1}=" PKGBUILD 2>/dev/null | awk -F = '{print $2}' | tr -dc 'a-z0-9-_. \n';
+  grep "^${1}=" PKGBUILD 2>/dev/null | awk -F = '{print $2}' | tr -dc $valid_pkgname;
 }
 
 # Source apacman.conf file
@@ -358,7 +368,7 @@ existsinaur() {
   chosenpkg=$(echo "$1" | sed 's/\~$//' | awk -F "==" '{print $1}')
   val="${!2}"
 
-  regexmatch="$(echo $val | tr -dc '0-9a-z-.\n')"
+  regexmatch="$(echo $val | tr -dc $valid_pkgname)"
   if [[ $val != $regexmatch ]]; then
      matches=$(aurpkglist "$val")
      selectprovider "$val" $matches
@@ -573,6 +583,7 @@ aurbar() {
   endbar="]"
   perc="$(($1*100/$2))"
   width="$(stty size)"
+  width="${width:-80}"
   width="${width##* }"
   infolen="$(($width*6/10))"
   [ $infolen -lt 50 ] && infolen=50
@@ -1537,7 +1548,7 @@ fi
 # Install (-S) handling
 if [[ $option = install ]]; then
   for pkg in ${packageargs[@]}; do
-    regexmatch="$(echo $pkg | tr -dc '0-9a-z-.\n')"
+    regexmatch="$(echo $pkg | tr -dc $valid_pkgname)"
     if [[ "$pkg" =~ ^/ ]]; then
       err "${COLOR7}error:${ENDCOLOR} invalid package name $pkg"
     elif [[ $regex = 1 ]]; then
@@ -1755,10 +1766,10 @@ if [[ $option = search || $option = searchinstall ]]; then
     wait
     cp "$tmpdir/${packageargs[0]}.search" "$tmpdir/search.results"
     for ((i=1 ; i<${#packageargs[@]} ; i++)); do
-      regexmatch="$(echo ${packageargs[$i]} | tr -dc '0-9A-Za-z-.\n')"
+      [[ "$(echo ${packageargs[$i]} | tr -dc $valid_pkgname)"
       if [[ ${packageargs[$i]} != $regexmatch ]]; then
         echo -e "${COLOR6}notice:${ENDCOLOR} enabling regex mode (${packageargs[$i]})"
-        grep --color=always -E "${packageargs[$i]}" "$tmpdir/search.results" > "$tmpdir/search.results-2"
+        grep --color=always -G "${packageargs[$i]}" "$tmpdir/search.results" > "$tmpdir/search.results-2"
       else
         grep -xFf "$tmpdir/search.results" "$tmpdir/${packageargs[$i]}.search" > "$tmpdir/search.results-2"
       fi
