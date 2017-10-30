@@ -131,17 +131,17 @@ ctrlc() {
 }
 
 err() {
-  echo -e "$1"
+  echo -e "$1" >&2
   [[ "$warn" == 1 ]] || exit 3
 }
 
 dne() {
-  echo -e "$1"
+  echo -e "$1" >&2
   [[ "$warn" == 1 ]] || exit 5
 }
 
 invalid() {
-  echo -e "${COLOR7}error:${ENDCOLOR} invalid option \`$1'"
+  echo -e "${COLOR7}error:${ENDCOLOR} invalid option \`$1'" >&2
   [[ $nofail ]] && exit 2
 }
 
@@ -408,11 +408,11 @@ pickone() {
   choices=( $(echo $@) )
 
   for v in ${choices[@]}; do
-    echo "${n}) $v";
+    echo "${n}) $v" >/dev/tty
     n=$((n+1))
   done
-  echo
-  echo -n "Enter a selection (default=1): "
+  echo >/dev/tty
+  echo -n "Enter a selection (default=1): " >/dev/tty
   read -r
 
   # Parse answer
