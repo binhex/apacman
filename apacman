@@ -1766,7 +1766,7 @@ if [[ $option = search || $option = searchinstall ]]; then
     wait
     cp "$tmpdir/${packageargs[0]}.search" "$tmpdir/search.results"
     for ((i=1 ; i<${#packageargs[@]} ; i++)); do
-      [[ "$(echo ${packageargs[$i]} | tr -dc $valid_pkgname)"
+      regexmatch="$(echo ${packageargs[$i]} | tr -dc $valid_pkgname)"
       if [[ ${packageargs[$i]} != $regexmatch ]]; then
         echo -e "${COLOR6}notice:${ENDCOLOR} enabling regex mode (${packageargs[$i]})"
         grep --color=always -G "${packageargs[$i]}" "$tmpdir/search.results" > "$tmpdir/search.results-2"

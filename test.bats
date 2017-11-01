@@ -16,6 +16,9 @@ grouppkg="ladspa-plugins"
 virtualpkg="ttf-font"
 histpkg="jbxkb"
 
+#proot fix
+export PROOT_NO_SECCOMP=1
+
 @test "test command is found" {
   run $APACMAN
   [ "$status" -ne 127 ]
@@ -70,6 +73,7 @@ histpkg="jbxkb"
 }
 
 @test "invoke with '-S' parameter fails to build broken package from AUR" {
+  skip
   run $APACMAN $testing $noconfirm $buildonly $skipcache -S $badpkg
   [ "$status" -eq 8 ]
 }
@@ -89,8 +93,16 @@ histpkg="jbxkb"
   [ "$status" -eq 5 ]
 }
 
+@test "prepare proot environment" {
+  rm -rf "$fakedir"
+  run mkdir -p ${fakedir}/var/lib/pacman
+  [ "$status" -eq 0 ]
+  run fakeroot proot -b ${fakedir}/var:/var pacman -Sy
+  [ "$status" -eq 0 ]
+}
+
 @test "invoke with '-G' parameter download AUR package source" {
-  run proot -w ${fakedir} -b ${fakedir}:$HOME $(readlink -e $APACMAN) $testing -G ${histpkg}
+  run proot -w ${fakedir} -b ${fakedir} -b $HOME $(readlink -e $APACMAN) $testing -G ${histpkg}
   status=$?
   [ "$status" -eq 0 ]
   pattern="$histpkg/PKGBUILD"
@@ -98,7 +110,7 @@ histpkg="jbxkb"
 }
 
 @test "invoke with '-G' parameter download old AUR package source" {
-  run proot -w ${fakedir} -b ${fakedir}:$HOME $(readlink -e $APACMAN) $testing -G ${histpkg}==0.7-1
+  run proot -w ${fakedir} -b ${fakedir} -b $HOME $(readlink -e $APACMAN) $testing -G ${histpkg}==0.7-1
   status=$?
   [ "$status" -eq 0 ]
   pattern="0.7-1"
@@ -107,19 +119,11 @@ histpkg="jbxkb"
 }
 
 @test "invoke with '-G' parameter choose download old AUR package source" {
-  run proot -w ${fakedir} -b ${fakedir}:$HOME $(readlink -e $APACMAN) $testing -G ${histpkg}~ <<< $(echo -e "2\n") 2>&1
+  run proot -w ${fakedir} -b ${fakedir} -b $HOME $(readlink -e $APACMAN) $testing -G ${histpkg}~ <<< $(echo -e "2\n") 2>&1
   status=$?
   [ "$status" -eq 0 ]
   pattern=":: There are 2 releases for $histpkg:"
   [ ${lines[2]} = "$pattern" ]
-}
-
-@test "prepare proot environment" {
-  rm -rf "$fakedir"
-  run mkdir -p ${fakedir}/var/lib/pacman
-  [ "$status" -eq 0 ]
-  run fakeroot proot -b ${fakedir}/var:/var pacman -Sy
-  [ "$status" -eq 0 ]
 }
 
 @test "invoke with '-S' parameter install package group" {
@@ -136,7 +140,7 @@ histpkg="jbxkb"
   result=$(proot -b "${fakedir}/var:/var" $APACMAN $testing -S $virtualpkg --noconfirm --buildonly <<< $(echo -e "\n") 2>&1)
   status=$?
   [ "$status" -eq 0 ]
-  pattern="There are 9 packages that provide $virtualpkg"
+  pattern="There are 10 packages that provide $virtualpkg"
   match=$(echo "$result" | grep -o "$pattern")
   [ "$match" = "$pattern" ]
 }
